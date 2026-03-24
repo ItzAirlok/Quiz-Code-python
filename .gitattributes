@@ -1,2 +1,137 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+import sys
+import mysql.connector
+import random
+
+# Database connection
+mydb = mysql.connector.connect(host="localhost",user="root",password="Your password(Mysql)",database="Database of your choice(Table should be in that database)")
+mycursor = mydb.cursor()
+
+# *---------------- MAIN CODE AREA ---------------*
+def Home():
+    while True:   # to loop again and again after 
+        print("\n*-*-*-*-*-*-*-Welcome to Quiz*-*-*-*-*-*-*-")
+        print("made by ItzAirlok(You can eneter your name also)")
+        print("********************")
+        print("1. Enter Questions of your choice for quiz:")
+        print("2. participate in quiz:")
+        print("3. Exit:")
+
+        try:
+            f = int(input("Enter your choice: "))
+        except ValueError:
+            print("Invalid input, enter a number 1–3.")
+            continue
+
+        if f == 1:
+            Question()
+        elif f == 2:
+            Quiz()
+        elif f == 3:
+            print("Exiting the Quiz")
+            mycursor.close()
+            mydb.close()
+            sys.exit()
+        else:
+            print("Invalid choice, please try again.")
+
+#|| ----------------CODE FOR ADDITION OF QUESTIONS ----------------||
+def Question():
+    ch = 'Y'
+    while ch.lower() == 'y':
+        print("\nWelcome to Question Area Here You Can Enter Your Custom Questions")
+        print("--***---******---***--")
+        q = input("Enter the question: ")
+        op1 = input("Enter option 1: ")
+        op2 = input("Enter option 2: ")
+        op3 = input("Enter option 3: ")
+        op4 = input("Enter option 4: ")
+
+        ans = 0
+        while ans == 0:
+            try:
+                op = int(input("Which option is correct answer (1,2,3,4): "))
+                if op in (1, 2, 3, 4):
+                    ans = op   # store option number, not text
+                else:
+                    print("Please choose between 1–4 only.")
+            except ValueError:
+                print("Enter a number (1–4).")
+
+        # Insert question into DB
+        sql = "INSERT INTO question (question, op1, op2, op3, op4, ans) VALUES (%s,%s,%s,%s,%s,%s)"
+        mycursor.execute(sql, (q, op1, op2, op3, op4, ans))
+        mydb.commit()
+
+        ch = input("Question added successfully. Do you want to add more (Y/N)? ")
+
+# ||---------------- CODE FOR PARTICIPATE IN QUIZ ----------------||
+def Quiz():
+    print("\nWelcome to Quiz portal")
+    print("***********************")
+    mycursor.execute("SELECT * FROM question")
+    data = mycursor.fetchall()
+
+    if not data:
+        print("No questions available! Add some first.")
+        return
+
+    name = input("Enter your name: ")
+    rc = len(data)   # number of questions
+
+    try:
+        noq = int(input(f"Enter the number of questions to attempt (max {rc}): "))
+    except ValueError:
+        print("Invalid number.")
+        return
+
+    if noq < 1 or noq > rc:
+        print("Invalid number of questions.")
+        return
+
+    # ||--------------------------pick unique random questions--------------------------||
+    qids = random.sample(range(1, rc+1), noq)
+
+    print("\nQuiz has started! Good Luck...")
+    score = 0
+    c = 1
+
+    for qid in qids:
+        mycursor.execute("SELECT * FROM question WHERE qid=%s", (qid,))
+        ques = mycursor.fetchone()
+
+        print("\n====================================================================")
+        print(f"Q.{c}: {ques[1]}")
+        print(f"A. {ques[2]}")
+        print(f"B. {ques[3]}")
+        print(f"C. {ques[4]}")
+        print(f"D. {ques[5]}")
+        print("=======================================================================")
+        c += 1
+
+        ans = None
+        while ans is None:
+            choice = input("Answer (A,B,C,D): ").strip().lower()
+            if choice=='a':
+                ans=1
+            elif choice=='b':
+                ans=2
+            elif choice=='c':
+                ans=3
+            elif choice=='d':
+                ans=4
+            else:
+                print("Kindly select OPTION A, B, C, or D only.")
+
+        if ans == ques[6]:   # compare with stored correct option
+            print("✅ Correct!")
+            score += 1
+        else:
+            print(f"❌ Incorrect.. Correct answer was option {ques[6]}")
+
+    print("\nQuiz has ended!!")
+    print(f"{name}, your final score is: {score}/{noq}")
+    print("thank you for playing")
+    input("Press Enter to continue...")
+
+# ||---------------- RUN PROGRAM ----------------||
+Home()
